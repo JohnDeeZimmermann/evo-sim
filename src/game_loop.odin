@@ -4,7 +4,7 @@ import rl "vendor:raylib"
 
 import "ecs"
 
-Systems :: []SystemDefinition{SystemMovement}
+Systems :: []SystemDefinition{SystemMovement, SystemPlantSpawner}
 
 Tick :: int
 

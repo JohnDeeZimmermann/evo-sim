@@ -12,5 +12,8 @@ main :: proc() {
 	defer ecs.delete_world(world)
 
 	create_creatures(world)
+	for _ in 0..<5 {
+		plant_spawner_create_random(world, {0, 0}, {DEFAULT_WIDTH, DEFAULT_HEIGHT})
+	}
 	game_loop(world)
 }

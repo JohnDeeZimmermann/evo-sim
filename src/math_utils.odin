@@ -44,3 +44,8 @@ velocity_distance_rotation_to :: proc(
 
 	return velocity, distance, rotation
 }
+
+point_from_angled_radius :: proc(pos: Vec2, radius: f32, angle: f32) -> Vec2 {
+	radians := linalg.to_radians(angle)
+	return Vec2{pos.x + math.cos(radians) * radius, pos.y + math.sin(radians) * radius}
+}
