@@ -4,7 +4,7 @@ import "core:fmt"
 import "ecs"
 
 SystemDefinition :: struct {
-	run: proc(world: ^ecs.World, dt: f32, result: ^SystemResult) -> (ok: bool),
+	run: proc(world: ^ecs.World, dt: f32, tick: Tick, result: ^SystemResult) -> (ok: bool),
 }
 
 run_systems :: proc(
@@ -12,13 +12,14 @@ run_systems :: proc(
 	world: ^ecs.World,
 	result: ^SystemResult,
 	dt: f32,
+	tick: Tick,
 ) -> (
 	ok: bool,
 ) {
 	clear_dynamic_array(result)
 
 	for system, idx in systems {
-		if !system.run(world, dt, result) {
+		if !system.run(world, dt, tick, result) {
 			fmt.eprintln("Failed running system: ", idx)
 			return false
 		}

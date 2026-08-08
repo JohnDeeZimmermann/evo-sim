@@ -6,8 +6,15 @@ SystemMovement :: SystemDefinition {
 	run = movement_system,
 }
 
-movement_system :: proc(world: ^ecs.World, dt: f32, result: ^SystemResult) -> (ok: bool) {
-	for archetype in ecs.query(world, {Position, Velocity}) {
+movement_system :: proc(
+	world: ^ecs.World,
+	dt: f32,
+	tick: Tick,
+	result: ^SystemResult,
+) -> (
+	ok: bool,
+) {
+	for archetype in ecs.query(world, {ecs.and(Position, Velocity), ecs.not(CreatureIsDead)}) {
 		positions := ecs.get_table(world, archetype, Position)
 		velocities := ecs.get_table(world, archetype, Velocity)
 

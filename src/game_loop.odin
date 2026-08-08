@@ -6,9 +6,13 @@ import "ecs"
 
 Systems :: []SystemDefinition{SystemMovement}
 
+Tick :: int
+
 game_loop :: proc(world: ^ecs.World) {
 	result := make(SystemResult)
 	defer delete(result)
+
+	ticks: Tick = 0
 
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
@@ -18,9 +22,11 @@ game_loop :: proc(world: ^ecs.World) {
 		render_creatures(world)
 		rl.EndDrawing()
 
-		if !run_systems(Systems, world, &result, dt) {
+		if !run_systems(Systems, world, &result, dt, ticks) {
 			return
 		}
+
+		ticks += 1
 
 		free_all(context.temp_allocator)
 	}

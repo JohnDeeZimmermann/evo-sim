@@ -30,15 +30,12 @@ Creature_Neural_Output :: enum u8 {
 }
 
 CREATURE_NEURAL_SCHEMA :: neural.Schema {
-	input_count = 2,
+	input_count  = 2,
 	output_count = 2,
 }
 
 Creature_Neural_Inputs :: proc(energy: Normalized, age: Percentage) -> [2]f32 {
-	return {
-		f32(percentage(f32(normalized(f32(energy))))),
-		f32(percentage(f32(age))),
-	}
+	return {f32(percentage(f32(normalized(f32(energy))))), f32(percentage(f32(age)))}
 }
 
 CreatureData :: struct {
@@ -76,15 +73,14 @@ create_creatures :: proc(world: ^ecs.World) {
 
 	for position, i in positions {
 		velocity := Velocity{rand.float32_range(-35, 35), rand.float32_range(-35, 35)}
+		size := Size(sizes[i])
 		ecs.add_entity(
 			world,
 			position,
 			rotations[i],
 			velocity,
-			CreatureData{
-				base_genes = {size = sizes[i]},
-				neural_genes = {},
-			},
+			size,
+			CreatureData{base_genes = {size = sizes[i]}, neural_genes = {}},
 		)
 	}
 }
