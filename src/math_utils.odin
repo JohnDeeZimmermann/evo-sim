@@ -1,0 +1,46 @@
+package main
+
+import "core:math"
+import "core:math/linalg"
+
+Vec2 :: linalg.Vector2f32
+
+
+velocity_for_direction :: proc(direction: Vec2, distance: f32, speed: f32) -> Vec2 {
+	if distance == 0 {
+		return {}
+	}
+
+	return {direction.x / distance * speed, direction.y / distance * speed}
+}
+
+direction_to :: proc(position: Vec2, target: Vec2) -> Vec2 {
+	return {target.x - position.x, target.y - position.y}
+}
+
+rotation_for_direction :: proc(direction: Vec2) -> f32 {
+	return math.atan2_f32(direction.y, direction.x) * 180 / math.PI
+}
+
+velocity_for_rotation :: proc(rotation: f32, speed: f32) -> Vec2 {
+	radians := rotation * math.PI / 180
+	return {math.cos_f32(radians) * speed, math.sin_f32(radians) * speed}
+}
+
+velocity_distance_rotation_to :: proc(
+	position: Vec2,
+	target: Vec2,
+	speed: f32,
+) -> (
+	velocity: Vec2,
+	distance: f32,
+	rotation: f32,
+) {
+	direction := direction_to(position, target)
+
+	distance = linalg.distance(position, target)
+	rotation = rotation_for_direction(direction)
+	velocity = velocity_for_direction(direction, distance, speed)
+
+	return velocity, distance, rotation
+}
