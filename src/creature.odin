@@ -3,6 +3,7 @@ package main
 import "core:math/rand"
 import "ecs"
 import "neural"
+import rl "vendor:raylib"
 
 Normalized :: distinct f32
 Percentage :: distinct f32
@@ -80,6 +81,7 @@ create_creatures :: proc(world: ^ecs.World) {
 			rotations[i],
 			velocity,
 			size,
+			RenderCircle{border_width = 0.1, border_color = rl.BLACK, inner_color = rl.GREEN},
 			CreatureData{base_genes = {size = sizes[i]}, neural_genes = {}},
 		)
 	}

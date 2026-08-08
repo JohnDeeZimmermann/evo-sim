@@ -17,11 +17,7 @@ game_loop :: proc(world: ^ecs.World) {
 	for !rl.WindowShouldClose() {
 		dt := rl.GetFrameTime()
 
-		rl.BeginDrawing()
-		rl.ClearBackground(rl.RAYWHITE)
-		render_creatures(world)
-		rl.EndDrawing()
-
+		render(world)
 		if !run_systems(Systems, world, &result, dt, ticks) {
 			return
 		}
