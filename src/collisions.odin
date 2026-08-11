@@ -12,6 +12,16 @@ ColShapePointPos :: struct {
 	position:          Vec2,
 }
 
+ColShapeLine :: struct {
+	start: Vec2,
+	end:   Vec2,
+}
+
+ColShapeLinePos :: struct {
+	using line: ColShapeLine,
+	position:   Vec2,
+}
+
 ColShapeRect :: struct {
 	using shape_point: ColShapePoint,
 	dimensions:        Vec2,
@@ -44,6 +54,7 @@ ColShapeCirclePos :: struct {
 
 
 ColShape :: union {
+	ColShapeLine,
 	ColShapeRect,
 	ColShapeRotatedRect,
 	ColShapeCircle,
@@ -51,6 +62,7 @@ ColShape :: union {
 }
 
 ColShapePos :: union {
+	ColShapeLinePos,
 	ColShapeRectPos,
 	ColShapeRotatedRectPos,
 	ColShapeCirclePos,
@@ -58,6 +70,15 @@ ColShapePos :: union {
 }
 
 shapes_intersect :: proc {
+	shapes_intersect_line_line,
+	shapes_intersect_line_point,
+	shapes_intersect_line_circle,
+	shapes_intersect_line_rect,
+	shapes_intersect_line_rotated_rect,
+	shapes_intersect_point_line,
+	shapes_intersect_circle_line,
+	shapes_intersect_rect_line,
+	shapes_intersect_rotated_rect_line,
 	shapes_intersect_circle_circle,
 	shapes_intersect_circle_point,
 	shapes_intersect_circle_rect,
@@ -77,8 +98,23 @@ shapes_intersect :: proc {
 
 shapes_intersect_any :: proc(first: ColShapePos, second: ColShapePos) -> bool {
 	switch a in first {
+	case ColShapeLinePos:
+		switch b in second {
+		case ColShapeLinePos:
+			return shapes_intersect_line_line(a, b)
+		case ColShapeRectPos:
+			return shapes_intersect_line_rect(a, b)
+		case ColShapeRotatedRectPos:
+			return shapes_intersect_line_rotated_rect(a, b)
+		case ColShapeCirclePos:
+			return shapes_intersect_line_circle(a, b)
+		case ColShapePointPos:
+			return shapes_intersect_line_point(a, b)
+		}
 	case ColShapeRectPos:
 		switch b in second {
+		case ColShapeLinePos:
+			return shapes_intersect_rect_line(a, b)
 		case ColShapeRectPos:
 			return shapes_intersect_rect_rect(a, b)
 		case ColShapeRotatedRectPos:
@@ -90,6 +126,8 @@ shapes_intersect_any :: proc(first: ColShapePos, second: ColShapePos) -> bool {
 		}
 	case ColShapeRotatedRectPos:
 		switch b in second {
+		case ColShapeLinePos:
+			return shapes_intersect_rotated_rect_line(a, b)
 		case ColShapeRectPos:
 			return shapes_intersect_rotated_rect_rect(a, b)
 		case ColShapeRotatedRectPos:
@@ -101,6 +139,8 @@ shapes_intersect_any :: proc(first: ColShapePos, second: ColShapePos) -> bool {
 		}
 	case ColShapeCirclePos:
 		switch b in second {
+		case ColShapeLinePos:
+			return shapes_intersect_circle_line(a, b)
 		case ColShapeRectPos:
 			return shapes_intersect_circle_rect(a, b)
 		case ColShapeRotatedRectPos:
@@ -112,6 +152,8 @@ shapes_intersect_any :: proc(first: ColShapePos, second: ColShapePos) -> bool {
 		}
 	case ColShapePointPos:
 		switch b in second {
+		case ColShapeLinePos:
+			return shapes_intersect_point_line(a, b)
 		case ColShapeRectPos:
 			return shapes_intersect_point_rect(a, b)
 		case ColShapeRotatedRectPos:
@@ -124,6 +166,10 @@ shapes_intersect_any :: proc(first: ColShapePos, second: ColShapePos) -> bool {
 	}
 
 	return false
+}
+
+shape_with_pos_line :: proc(line: ColShapeLine, position: Vec2) -> ColShapeLinePos {
+	return {line = line, position = position}
 }
 
 shape_with_pos_rect :: proc(rect: ColShapeRect, position: Vec2) -> ColShapeRectPos {
@@ -151,6 +197,8 @@ shape_with_pos_rotated_rect :: proc(
 
 shape_with_pos_any :: proc(shape: ColShape, position: Vec2) -> ColShapePos {
 	switch s in shape {
+	case ColShapeLine:
+		return shape_with_pos_line(s, position)
 	case ColShapeRect:
 		return shape_with_pos_rect(s, position)
 	case ColShapeRotatedRect:
@@ -162,6 +210,10 @@ shape_with_pos_any :: proc(shape: ColShape, position: Vec2) -> ColShapePos {
 	}
 
 	return nil
+}
+
+line_points :: proc(line: ColShapeLinePos) -> (start, end: Vec2) {
+	return line.position + line.start, line.position + line.end
 }
 
 rotated_rect_center :: proc(rect: ColShapeRotatedRectPos) -> Vec2 {
@@ -231,6 +283,130 @@ rotated_rect_contains_local_point :: proc(
 		local_point.y >= -half.y &&
 		local_point.y <= half.y \
 	)
+}
+
+cross_vec2 :: proc(first, second: Vec2) -> f32 {
+	return first.x * second.y - first.y * second.x
+}
+
+point_on_line_segment :: proc(point, start, end: Vec2) -> bool {
+	EPSILON :: f32(0.000001)
+	segment := end - start
+	to_point := point - start
+	length_squared := linalg.dot(segment, segment)
+
+	if length_squared <= EPSILON * EPSILON {
+		return linalg.dot(to_point, to_point) <= EPSILON * EPSILON
+	}
+
+	cross := cross_vec2(segment, to_point)
+	if cross * cross > EPSILON * EPSILON * length_squared {
+		return false
+	}
+
+	projection := linalg.dot(to_point, segment) / length_squared
+	return projection >= -EPSILON && projection <= 1 + EPSILON
+}
+
+line_segments_intersect :: proc(first_start, first_end, second_start, second_end: Vec2) -> bool {
+	EPSILON :: f32(0.000001)
+	first_direction := first_end - first_start
+	second_direction := second_end - second_start
+	between_starts := second_start - first_start
+	cross_directions := cross_vec2(first_direction, second_direction)
+	parallel_threshold_squared :=
+		EPSILON * EPSILON * linalg.dot(first_direction, first_direction) *
+		linalg.dot(second_direction, second_direction)
+
+	if cross_directions * cross_directions <= parallel_threshold_squared {
+		return point_on_line_segment(first_start, second_start, second_end) ||
+		       point_on_line_segment(first_end, second_start, second_end) ||
+		       point_on_line_segment(second_start, first_start, first_end) ||
+		       point_on_line_segment(second_end, first_start, first_end)
+	}
+
+	first_distance := cross_vec2(between_starts, second_direction) / cross_directions
+	second_distance := cross_vec2(between_starts, first_direction) / cross_directions
+	return(
+		first_distance >= -EPSILON && first_distance <= 1 + EPSILON &&
+		second_distance >= -EPSILON && second_distance <= 1 + EPSILON \
+	)
+}
+
+line_segment_intersects_rect :: proc(start, end, min, max: Vec2) -> bool {
+	if start.x >= min.x && start.x <= max.x && start.y >= min.y && start.y <= max.y {
+		return true
+	}
+
+	return(
+		line_segments_intersect(start, end, min, {max.x, min.y}) ||
+		line_segments_intersect(start, end, {max.x, min.y}, max) ||
+		line_segments_intersect(start, end, max, {min.x, max.y}) ||
+		line_segments_intersect(start, end, {min.x, max.y}, min) \
+	)
+}
+
+shapes_intersect_line_line :: proc(first: ColShapeLinePos, second: ColShapeLinePos) -> bool {
+	first_start, first_end := line_points(first)
+	second_start, second_end := line_points(second)
+	return line_segments_intersect(first_start, first_end, second_start, second_end)
+}
+
+shapes_intersect_line_point :: proc(line: ColShapeLinePos, point: ColShapePointPos) -> bool {
+	start, end := line_points(line)
+	return point_on_line_segment(point.position + point.offset, start, end)
+}
+
+shapes_intersect_point_line :: proc(point: ColShapePointPos, line: ColShapeLinePos) -> bool {
+	return shapes_intersect_line_point(line, point)
+}
+
+shapes_intersect_line_circle :: proc(line: ColShapeLinePos, circle: ColShapeCirclePos) -> bool {
+	start, end := line_points(line)
+	center := circle.position + circle.offset
+	segment := end - start
+	length_squared := linalg.dot(segment, segment)
+	closest := start
+
+	if length_squared > 0 {
+		distance := math.clamp(linalg.dot(center - start, segment) / length_squared, 0, 1)
+		closest = start + segment * distance
+	}
+
+	to_center := center - closest
+	return linalg.dot(to_center, to_center) <= circle.radius * circle.radius
+}
+
+shapes_intersect_circle_line :: proc(circle: ColShapeCirclePos, line: ColShapeLinePos) -> bool {
+	return shapes_intersect_line_circle(line, circle)
+}
+
+shapes_intersect_line_rect :: proc(line: ColShapeLinePos, rect: ColShapeRectPos) -> bool {
+	start, end := line_points(line)
+	min := rect.position + rect.offset
+	return line_segment_intersects_rect(start, end, min, min + rect.dimensions)
+}
+
+shapes_intersect_rect_line :: proc(rect: ColShapeRectPos, line: ColShapeLinePos) -> bool {
+	return shapes_intersect_line_rect(line, rect)
+}
+
+shapes_intersect_line_rotated_rect :: proc(
+	line: ColShapeLinePos,
+	rotated_rect: ColShapeRotatedRectPos,
+) -> bool {
+	start, end := line_points(line)
+	local_start := point_in_rotated_rect_space(start, rotated_rect)
+	local_end := point_in_rotated_rect_space(end, rotated_rect)
+	half := rotated_rect.dimensions / 2
+	return line_segment_intersects_rect(local_start, local_end, -half, half)
+}
+
+shapes_intersect_rotated_rect_line :: proc(
+	rotated_rect: ColShapeRotatedRectPos,
+	line: ColShapeLinePos,
+) -> bool {
+	return shapes_intersect_line_rotated_rect(line, rotated_rect)
 }
 
 shapes_intersect_rect_rect :: proc(first: ColShapeRectPos, second: ColShapeRectPos) -> bool {

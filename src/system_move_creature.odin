@@ -31,7 +31,7 @@ creature_movement_system :: proc(
 
 			speed := creature.base_genes.speed * f32(creature.outputs.speed)
 
-			vel^ = Velocity(velocity_for_rotation(rotation^, 15))
+			vel^ = Velocity(velocity_for_rotation(rotation^, speed))
 		}
 	}
 
